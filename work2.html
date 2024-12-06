@@ -1,1 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แบบทดสอบ Online</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@3.7.4/dist/vuetify.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@3.7.4/dist/vuetify.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #dbe4e8; 
+            color: #333333;
+            font-family: 'Sarabun', sans-serif; 
+            margin: 0;
+            padding: 0;
+        }
+
+        h1, h2, p, strong {
+            color: #333333;
+            text-align: center;
+        }
+
+        .quiz-container {
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 40px;
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            border: 2px solid #b0bec5;
+        }
+
+        .question {
+            color: #00796b;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .answer {
+            color: #555555;
+            font-size: 16px;
+        }
+
+        .my-2 {
+            margin: 15px 0;
+        }
+
+        .v-btn.start-btn {
+            background-color: #00796b !important;
+            color: white !important;
+            font-weight: bold;
+            border-radius: 25px;
+            padding: 10px 20px;
+        }
+
+        .v-btn.start-btn:hover {
+            background-color: #004d40 !important;
+        }
+
+        .v-btn.check-btn {
+            background-color: #ff7043 !important;
+            color: white !important;
+            font-weight: bold;
+            border-radius: 25px;
+            padding: 10px 20px;
+        }
+
+        .v-btn.check-btn:hover {
+            background-color: #d32f2f !important;
+        }
+
+        .result-box {
+            text-align: center;
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #b0bec5;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .v-radio-group {
+            margin-top: 15px;
+        }
+
+        .v-btn {
+            margin: 10px 0;
+            padding: 15px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <v-app>
+            <v-container class="quiz-container">
+                <div v-if="page === 1">
+                    <h1>แบบทดสอบ Online</h1>
+                    <p>วัดความรู้เกี่ยวกับกฎหมายจราจร กรุณาเลือกเริ่มทำเพื่อทำแบบทดสอบ!</p>
+                    <v-btn class="start-btn my-2" @click="page = 2">เริ่มทำแบบทดสอบ</v-btn>
+                </div>
+                <div v-if="page === 2">
+                    <h2>แบบทดสอบ</h2>
+                    <div v-for="(q, i) in qlist" :key="i" class="pa-4">
+                        <div>
+                            <strong class="question">ข้อที่ {{ i + 1 }}:</strong>
+                            <div v-html="q.title" class="my-2"></div>
+                        </div>
+                        <v-radio-group v-model="answers[i]" class="my-2">
+                            <v-radio v-for="(option, index) in q.options" :key="index" :label="option"
+                                :value="index + 1" class="answer my-1">
+                            </v-radio>
+                        </v-radio-group>
+                    </div>
+                    <v-btn :disabled="!validate()" class="check-btn my-2" @click="grading">
+                        ตรวจคำตอบ
+                    </v-btn>
+                </div>
+                <div v-if="page === 3" class="result-box">
+                    <h2>ผลคะแนนของคุณ</h2>
+                    <p>คุณได้คะแนน {{ score }}/{{ qlist.length }}</p>
+                    <v-btn class="start-btn my-2" @click="restart">
+                        ลองทำใหม่อีกครั้ง
+                    </v-btn>
+                </div>
+            </v-container>
+        </v-app>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        const { createVuetify } = Vuetify;
+
+        const vuetify = createVuetify({
+            theme: {
+                defaultTheme: 'light',
+                themes: {
+                    light: {
+                        colors: {
+                            background: '#dbe4e8', 
+                            surface: '#ffffff', 
+                            primary: '#00796b', 
+                            secondary: '#ff7043', 
+                            error: '#ff5722', 
+                            text: '#333333', 
+                            white: '#ffffff', 
+                            black: '#000000' 
+                        },
+                    },
+                },
+            },
+        });
+
+        const app = createApp({
+            data() {
+                return {
+                    qlist: [],
+                    answers: [],
+                    score: 0,
+                    page: 1,
+                };
+            },
+            mounted() {
+                this.loadQuestions();
+            },
+            methods: {
+                async loadQuestions() {
+                    const response = await fetch('./quiz2.json');
+                    this.qlist = await response.json();
+                },
+                validate() {
+                    return this.answers.length === this.qlist.length && !this.answers.includes(undefined);
+                },
+                grading() {
+                    this.score = this.qlist.reduce((total, question, index) => {
+                        return total + (this.answers[index] === question.answer ? 1 : 0);
+                    }, 0);
+                    this.page = 3;
+                },
+                restart() {
+                    this.answers = [];
+                    this.score = 0;
+                    this.page = 1;
+                },
+            },
+        });
+
+        app.use(vuetify).mount('#app');
+    </script>
+</body>
+</html>
 
