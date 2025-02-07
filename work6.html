@@ -1,1 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Work6</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/vuetify@3.4.10/dist/vuetify.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/vuetify@3.4.10/dist/vuetify.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@5.x/css/materialdesignicons.min.css" rel="stylesheet">
+</head>
+<style>
+    
 
+    /* ✅ กรอบ + ขอบมนให้ปุ่ม v-btn */
+    .bordered-btn {
+        border: 3px solid white !important; /* กรอบสีขาว */
+        border-radius: 10px !important; /* ขอบมน */
+        padding: 10px 20px;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+
+    .bordered-btn:hover {
+    
+        background-color: rgba(215, 215, 215, 0.2) !important; 
+        transform: scale(1.05);
+    }
+
+
+    /* ✅ ทำให้ v-card-title ด้านบนมน */
+    .rounded-t-xl {
+        border-radius: 10px !important;
+        
+    }
+
+
+</style>
+
+
+<body>
+    <div id="app">
+        <v-app>
+            <v-container>
+                    <v-card-title class="bg-blue-grey rounded-t-xl">{{title}}</v-card-title>
+                    <v-card-actions>
+                        <template v-if="user">
+
+                            <div class="pa-2">
+                                <v-avatar><img :src="user.photoURL" /></v-avatar>
+                            </div>
+                            <div class="pa-2">
+                                {{user.displayName}}<br />
+                                {{user.email}}<br />
+                            </div>
+                            <!-- <div>
+                                {{ustudent}}
+                            </div> -->
+                        </template>
+                        <v-btn @click="google_login()" v-if="!user"> Login</v-btn>
+                        <v-btn @click="google_logout()" v-if="user"> Logout</v-btn>
+                    </v-card-actions>
+
+                    <v-card-text class="pa-6">
+
+                        <table width="100%">
+                            <thead>
+                                <tr>
+                                    <td>รหัส</td>
+                                    <td>คำนำหน้า</td>
+                                    <td>ชื่อ</td>
+                                    <td>สกุล</td>
+                                    <td>Email</td>
+                                    <td>โทรศัพท์</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(s) in students">
+                                    <td>{{s.id}}</td>
+                                    <td>{{s.title}}</td>
+                                    <td>{{s.fname}}</td>
+                                    <td>{{s.lname}}</td>
+                                    <td>{{s.email}}</td>
+                                    <td>{{s.phone}}</td>
+                                    <td>
+                                        <v-btn @click="edit(s)"><v-icon icon="mdi-account-edit"></v-icon></v-btn>
+                                        <v-btn @click="deleteData(s)"><v-icon
+                                                icon="mdi-account-remove"></v-icon></v-btn>
+
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </v-card-text>
+                <v-card class="rounded-lg bordered-card" elevation="3">
+                    <v-card-actions>
+                        <v-btn class="rounded-lg bordered-btn" color="primary" @click="readData()">
+                            📖 Read Data (GET)
+                        </v-btn>
+                        <v-btn class="rounded-lg bordered-btn" color="success" @click="autoRead()">
+                            🔄 Auto Read (onSnapshot)
+                        </v-btn>
+                        <v-btn class="rounded-lg bordered-btn" color="blue" @click="addData()">
+                            ➕ Add Data
+                        </v-btn>
+                    </v-card-actions>
+                </v-card>
+                <br>
+                <v-card v-if="editmode" class="rounded-xl bordered-card pa-6" elevation="3">
+                    <v-card-title class="bg-blue-grey rounded-t-xl">{{ editmode }}</v-card-title>
+                    <v-card-text class="pa-6">
+                        <v-text-field v-model="editstd.id" label="รหัส" class="rounded-lg"></v-text-field>
+                        <v-combobox v-model="editstd.title" label="คำนำหน้า" class="rounded-lg"
+                            :items="['นาย','นางสาว','ด.ช.','ด.ญ','นาง']"></v-combobox>
+                        <v-text-field v-model="editstd.fname" label="ชื่อ" class="rounded-lg"></v-text-field>
+                        <v-text-field v-model="editstd.lname" label="นามสกุล" class="rounded-lg"></v-text-field>
+                        <v-text-field v-model="editstd.email" label="E-mail" class="rounded-lg"></v-text-field>
+                        <v-text-field v-model="editstd.phone" label="โทรศัพท์" class="rounded-lg"></v-text-field>
+                    </v-card-text>
+                    <v-card-actions>
+                        <v-btn class="rounded-lg bordered-btn" color="success" @click="savedata()">💾 บันทึก</v-btn>
+                        <v-btn class="rounded-lg bordered-btn" color="error" @click="editmode=0">❌ ยกเลิก</v-btn>
+                    </v-card-actions>
+                </v-card>
+                <div class="pa-6 text-center">
+                    <v-card-text style="white-space: pre-line;">{{ footer }}</v-card-text>
+                </div>
+            </v-container>
+        </v-app>
+    </div>
+    <script>
+        const firebaseConfig = {
+        apiKey: "AIzaSyAtfM5b1ktzu4yVsuIQgMGCXWitEYic4eY",
+        authDomain: "web2567-e81cb.firebaseapp.com",
+        projectId: "web2567-e81cb",
+        storageBucket: "web2567-e81cb.firebasestorage.app",
+        messagingSenderId: "415024648304",
+        appId: "1:415024648304:web:2108892a2886cb61d2a4b5",
+        measurementId: "G-YBXTLQGYER"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        const vuetify = Vuetify.createVuetify();
+        const app = Vue.createApp({
+
+            data() {
+                return {
+                    title: "Work 6:  เรียกใช้ฐานข้อมูล Firebase ด้วย VueJS",
+                    footer: "663380165-1 Thatchaphon Khamkamjon IT \nCollege of Computing, Khon Kaen University",
+                    students: [],
+                    editstd: {},
+                    editmode: 0,
+                    user: null,
+                    ustudent: null,
+                };
+            },
+
+            mounted() {
+                firebase.auth().onAuthStateChanged((user) => {
+                    if (user) {
+                        this.user = user.toJSON();
+                        console.log("User logged in:", this.user.email);
+                        this.getstudent(this.user.email);
+                    } else {
+                        this.user = null;
+                        this.ustudent = null;
+                    }
+                });
+            },
+            methods: {
+                readData() {
+                    db.collection("students")
+                        .get()
+                        .then((querySnapshot) => {
+                            var stdlist = [];
+                            querySnapshot.forEach((doc) => {
+                                stdlist.push({ id: doc.id, ...doc.data() });
+                            });
+                            this.students = stdlist;
+                        });
+                },
+                autoRead() {
+                    db.collection("students").onSnapshot((querySnapshot) => {
+                        var stdlist = [];
+                        querySnapshot.forEach((doc) => {
+                            stdlist.push({ id: doc.id, ...doc.data() });
+                        });
+                        this.students = stdlist;
+                        console.log("Students data updated:", this.students);
+                    });
+                },
+                edit(std) {
+                    this.editstd = std;
+                    this.editmode = "edit";
+                },
+                savedata() {
+                    if (!this.editstd.id) {
+                        alert("เกิดข้อผิดพลาด: ไม่มีรหัสนักเรียน");
+                        return;
+                    }
+
+                    db.collection("students")
+                        .doc(this.editstd.id)
+                        .set(this.editstd, { merge: true })
+                        .then(() => {
+                            alert("บันทึกข้อมูลสำเร็จ");
+                            this.editmode = 0;
+                            this.readData();
+                        })
+                        .catch((error) => {
+                            alert("เกิดข้อผิดพลาด: " + error.message);
+                            console.error("Error saving data:", error);
+                        });
+                },
+                deleteData(std) {
+                    if (confirm("ต้องการลบข้อมูล")) {
+                        db.collection("students").doc(std.id).delete();
+                    }
+                },
+                addData() {
+                    this.editmode = "เพิ่มนักเรียน";
+                    this.editstd = {};
+                },
+                google_login() {
+                    var provider = new firebase.auth.GoogleAuthProvider();
+                    provider.addScope("profile");
+                    provider.addScope("email");
+                    firebase.auth().signInWithPopup(provider);
+                },
+                google_logout() {
+                    if (confirm("Are you sure?")) {
+                        firebase.auth().signOut();
+                    }
+                },
+                getstudent(email) {
+                    console.log("Fetching student data for:", email);
+                    db.collection("students")
+                        .where("email", "==", email)
+                        .limit(1)
+                        .get()
+                        .then((querySnapshot) => {
+                            if (!querySnapshot.empty) {
+                                querySnapshot.forEach((doc) => {
+                                    this.ustudent = { id: doc.id, ...doc.data() };
+                                });
+                                console.log("Student data found:", this.ustudent);
+                            } else {
+                                this.ustudent = "ไม่พบข้อมูลในระบบ";
+                                console.log("No student data found");
+                            }
+                        })
+                        .catch((error) => {
+                            console.error("Error fetching student data:", error);
+                        });
+                }
+
+            },
+        });
+        app.use(vuetify).mount("#app");
+    </script>
+</body>
+</html>
